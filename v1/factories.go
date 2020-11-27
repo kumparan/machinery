@@ -175,7 +175,7 @@ func BackendFactory(cnf *config.Config) (backendiface.Backend, error) {
 		return nullbackend.New(), nil
 	}
 
-	if strings.HasPrefix(cnf.ResultBackend, "https://dynamodb") {
+	if strings.HasPrefix(cnf.ResultBackend, "https://dynamodb") || strings.HasPrefix(cnf.ResultBackend, "http://") {
 		return dynamobackend.New(cnf), nil
 	}
 
