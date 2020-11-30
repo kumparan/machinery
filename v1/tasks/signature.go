@@ -43,31 +43,31 @@ func (h Headers) ForeachKey(handler func(key, val string) error) error {
 
 // Signature represents a single task invocation
 type Signature struct {
-	UUID           string `json:"ompitempty"`
-	Name           string
-	RoutingKey     string
-	ETA            *time.Time
-	GroupUUID      string
-	GroupTaskCount int
-	Args           []Arg
-	Headers        Headers
-	Priority       uint8
-	Immutable      bool
-	RetryCount     int
-	RetryTimeout   int
-	OnSuccess      []*Signature
-	OnError        []*Signature
-	ChordCallback  *Signature
+	UUID           string       `json:"UUID,omitempty"`
+	Name           string       `json:"Name,omitempty"`
+	RoutingKey     string       `json:"RoutingKey,omitempty"`
+	ETA            *time.Time   `json:"ETA,omitempty"`
+	GroupUUID      string       `json:"GroupUUID,omitempty"`
+	GroupTaskCount int          `json:"GroupTaskCount,omitempty"`
+	Args           []Arg        `json:"Args,omitempty"`
+	Headers        Headers      `json:"Headers,omitempty"`
+	Priority       uint8        `json:"Priority,omitempty"`
+	Immutable      bool         `json:"Immutable,omitempty"`
+	RetryCount     int          `json:"RetryCount,omitempty"`
+	RetryTimeout   int          `json:"RetryTimeout,omitempty"`
+	OnSuccess      []*Signature `json:"OnSuccess,omitempty"`
+	OnError        []*Signature `json:"OnError,omitempty"`
+	ChordCallback  *Signature   `json:"ChordCallback,omitempty"`
 	//MessageGroupId for Broker, e.g. SQS
-	BrokerMessageGroupId string
+	BrokerMessageGroupId string `json:"BrokerMessageGroupId,omitempty"`
 	//ReceiptHandle of SQS Message
-	SQSReceiptHandle string
-	// StopTaskDeletionOnError used with sqs when we want to send failed messages to dlq, 
-  // and don't want machinery to delete from source queue
-	StopTaskDeletionOnError bool
+	SQSReceiptHandle string `json:"SQSReceiptHandle,omitempty"`
+	// StopTaskDeletionOnError used with sqs when we want to send failed messages to dlq,
+	// and don't want machinery to delete from source queue
+	StopTaskDeletionOnError bool `json:"StopTaskDeletionOnError,omitempty"`
 	// IgnoreWhenTaskNotRegistered auto removes the request when there is no handeler available
 	// When this is true a task with no handler will be ignored and not placed back in the queue
-	IgnoreWhenTaskNotRegistered bool
+	IgnoreWhenTaskNotRegistered bool `json:"IgnoreWhenTaskNotRegistered,omitempty"`
 }
 
 func (s *Signature) clone() *Signature {

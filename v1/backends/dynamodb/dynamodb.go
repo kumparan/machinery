@@ -1,7 +1,6 @@
 package dynamodb
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -502,16 +501,31 @@ func (b *Backend) initTaskState(taskState *tasks.TaskState) error {
 	return nil
 }
 
+func parseSignature(sig *tasks.Signature) map[string]*dynamodb.AttributeValue {
+	res, err := dynamodbattribute.MarshalMap(sig)
+	if err != nil {
+		return nil
+	}
+
+	return res
+	// return map[string]*dynamodb.AttributeValue{
+	// 	"UUID": &dynamodb.AttributeValue{S: aws.String(sig.UUID)},
+	// 	"Name": &dynamodb.AttributeValue{S: aws.String(sig.Name)},
+	// 	"Args": &dynamodb.AttributeValue{S: aws.String(sig.Args)}
+	// }
+}
+
 func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) error {
-	sig, err := json.Marshal(taskState.Signature)
+	sig, err := dynamodbattribute.MarshalMap(taskState.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to marshal task signature: %w", err)
 	}
 
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeNames: map[string]*string{
-			"#S": aws.String("State"),
-			"#E": aws.String("Error"),
+			"#S":  aws.String("State"),
+			"#E":  aws.String("Error"),
+			"#Si": aws.String("Signature"),
 		},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":s": {
@@ -520,18 +534,18 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 			":e": {
 				S: aws.String(taskState.Error),
 			},
+			":si": {
+				M: sig,
+			},
 		},
 		Key: map[string]*dynamodb.AttributeValue{
 			"TaskUUID": {
 				S: aws.String(taskState.TaskUUID),
 			},
-			"Signature": {
-				S: aws.String(string(sig)),
-			},
 		},
 		ReturnValues:     aws.String("UPDATED_NEW"),
 		TableName:        aws.String(b.cnf.DynamoDB.TaskStatesTable),
-		UpdateExpression: aws.String("SET #S = :s, #E = :e"),
+		UpdateExpression: aws.String("SET #S = :s, #E = :e, #Si = :si"),
 	}
 
 	if taskState.TTL > 0 {
@@ -545,6 +559,7 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 	_, err = b.client.UpdateItem(input)
 
 	if err != nil {
+		log.DEBUG.Print("FAILED >>> %#v", input)
 		return err
 	}
 	return nil

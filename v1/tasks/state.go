@@ -5,6 +5,9 @@ import (
 )
 
 const (
+	// TaskStateIndex state index
+	TaskStateIndex = "task_state_index"
+
 	// StatePending - initial state of a task
 	StatePending = "PENDING"
 	// StateReceived - when task is received by a worker
