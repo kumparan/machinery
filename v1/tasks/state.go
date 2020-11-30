@@ -6,7 +6,7 @@ import (
 
 const (
 	// TaskStateIndex state index
-	TaskStateIndex = "task_state_index"
+	TaskStateIndex = "StateIndex"
 
 	// StatePending - initial state of a task
 	StatePending = "PENDING"

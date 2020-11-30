@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"github.com/RichardKnop/machinery/v1/backends/result"
 	"github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/log"
 	"github.com/RichardKnop/machinery/v1/tasks"
@@ -11,25 +12,33 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
+type server interface {
+	SendTask(signature *tasks.Signature) (*result.AsyncResult, error)
+}
+
 // Dashboard monitor tasks
 type Dashboard struct {
 	cnf    *config.Config
 	client dynamodbiface.DynamoDBAPI
+	server server
+}
+
+// TaskWithSignature :nodoc:
+type TaskWithSignature struct {
+	TaskName  string `bson:"task_name"`
+	Signature string `bson:"signature"`
+	Error     string `bson:"error"`
 }
 
 // New :nodoc:
-func New(cnf *config.Config) *Dashboard {
-	dash := &Dashboard{cnf: cnf}
+func New(cnf *config.Config, srv server) *Dashboard {
+	dash := &Dashboard{
+		cnf:    cnf,
+		server: srv,
+	}
+
 	if cnf.DynamoDB != nil && cnf.DynamoDB.Client != nil {
 		dash.client = cnf.DynamoDB.Client
-	} else if cnf.ResultBackend != "" {
-		sess := session.Must(session.NewSession(
-			&aws.Config{
-				Region:   aws.String("asia"),
-				Endpoint: aws.String("http://localhost:8000"),
-			}),
-		)
-		dash.client = dynamodb.New(sess)
 	} else {
 		sess := session.Must(session.NewSessionWithOptions(session.Options{
 			SharedConfigState: session.SharedConfigEnable,
@@ -41,16 +50,20 @@ func New(cnf *config.Config) *Dashboard {
 }
 
 // FindAllTasksByState :nodoc:
-func (m *Dashboard) FindAllTasksByState(state string) (taskStates []*tasks.TaskState, err error) {
+func (m *Dashboard) FindAllTasksByState(state string) (taskStates []*TaskWithSignature, err error) {
+	var cursor map[string]*dynamodb.AttributeValue
+	var items []map[string]*dynamodb.AttributeValue
+
 	queryInput := &dynamodb.QueryInput{
 		TableName:              aws.String(m.cnf.DynamoDB.TaskStatesTable),
 		IndexName:              aws.String(tasks.TaskStateIndex), // use secondary global index
+		Limit:                  aws.Int64(10),
+		ProjectionExpression:   aws.String("TaskName, #err, Signature"),
 		KeyConditionExpression: aws.String("#st = :st"),
 		ExpressionAttributeNames: map[string]*string{
 			"#st":  aws.String("State"),
 			"#err": aws.String("Error"),
 		},
-		ProjectionExpression: aws.String("TaskName, #err, Signature"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":st": {
 				S: aws.String(state),
@@ -58,17 +71,46 @@ func (m *Dashboard) FindAllTasksByState(state string) (taskStates []*tasks.TaskS
 		},
 	}
 
-	out, err := m.client.Query(queryInput)
-	if err != nil {
-		log.ERROR.Print(err)
-		return
+	for {
+		queryInput.ExclusiveStartKey = cursor
+		out, err := m.client.Query(queryInput)
+		if err != nil {
+			log.ERROR.Print(err)
+			return nil, err
+		}
+
+		items = append(items, out.Items...)
+		cursor = out.LastEvaluatedKey
+
+		if out.LastEvaluatedKey == nil || len(out.Items) == 0 {
+			break
+		}
 	}
 
-	err = dynamodbattribute.UnmarshalListOfMaps(out.Items, &taskStates)
+	var res []TaskWithSignature
+	err = dynamodbattribute.UnmarshalListOfMaps(items, &res)
 	if err != nil {
 		log.ERROR.Print(err)
-		return
+		return nil, err
 	}
 
 	return
+}
+
+// ReEnqueueTask :FIXME: failed to enqueue because the args value not matching the type
+func (m *Dashboard) ReEnqueueTask(sig *tasks.Signature) error {
+	sig.UUID = ""
+	sig.ETA = nil
+
+	for idx, arg := range sig.Args {
+		// args.Value
+		val, err := tasks.ReflectValue(arg.Type, arg.Value)
+		if err != nil {
+			log.FATAL.Println(err)
+		}
+
+		sig.Args[idx].Value = val
+	}
+	_, err := m.server.SendTask(sig)
+	return err
 }

@@ -11,7 +11,12 @@ type Dashboard struct {
 }
 
 // NewDashboard :nodoc:
-func NewDashboard(cnf *config.Config) dashboardiface.Dashboard {
-	dash, _ := DashboardFactory(cnf)
-	return dash
+func NewDashboard(cnf *config.Config) (dashboardiface.Dashboard, error) {
+	srv, err := NewServer(cnf)
+	if err != nil {
+		return nil, err
+	}
+
+	dash, err := DashboardFactory(cnf, srv)
+	return dash, err
 }

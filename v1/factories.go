@@ -139,15 +139,15 @@ func BackendFactory(cnf *config.Config) (backendiface.Backend, error) {
 		addrs := strings.Split(parts[1], ",")
 		if len(addrs) > 1 {
 			return redisbackend.NewGR(cnf, addrs, 0), nil
-		} else {
-			redisHost, redisPassword, redisDB, err := ParseRedisURL(cnf.ResultBackend)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return redisbackend.New(cnf, redisHost, redisPassword, "", redisDB), nil
 		}
+
+		redisHost, redisPassword, redisDB, err := ParseRedisURL(cnf.ResultBackend)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return redisbackend.New(cnf, redisHost, redisPassword, "", redisDB), nil
 	}
 
 	if strings.HasPrefix(cnf.ResultBackend, "redis+socket://") {
@@ -173,6 +173,8 @@ func BackendFactory(cnf *config.Config) (backendiface.Backend, error) {
 	}
 
 	if strings.HasPrefix(cnf.ResultBackend, "https://dynamodb") || strings.HasPrefix(cnf.ResultBackend, "http://") {
+		fmt.Println("cnf.ResultBackend >>> ", cnf.ResultBackend)
+
 		return dynamobackend.New(cnf), nil
 	}
 
@@ -294,9 +296,9 @@ func ParseGCPPubSubURL(url string) (string, string, error) {
 }
 
 // DashboardFactory :nodoc:
-func DashboardFactory(cnf *config.Config) (dashboardiface.Dashboard, error) {
+func DashboardFactory(cnf *config.Config, server *Server) (dashboardiface.Dashboard, error) {
 	if strings.HasPrefix(cnf.ResultBackend, "https://dynamodb") || strings.HasPrefix(cnf.ResultBackend, "http://") {
-		return dynamodbdashboard.New(cnf), nil
+		return dynamodbdashboard.New(cnf, server), nil
 	}
 
 	return nil, fmt.Errorf("Factory failed with dashboard: %v", cnf.ResultBackend)

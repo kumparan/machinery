@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -515,8 +516,8 @@ func parseSignature(sig *tasks.Signature) map[string]*dynamodb.AttributeValue {
 	// }
 }
 
-func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) error {
-	sig, err := dynamodbattribute.MarshalMap(taskState.Signature)
+func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err error) {
+	sig, err := json.Marshal(taskState.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to marshal task signature: %w", err)
 	}
@@ -535,7 +536,7 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 				S: aws.String(taskState.Error),
 			},
 			":si": {
-				M: sig,
+				S: aws.String(string(sig)),
 			},
 		},
 		Key: map[string]*dynamodb.AttributeValue{

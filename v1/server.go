@@ -40,13 +40,17 @@ func NewServerWithBrokerBackend(cnf *config.Config, brokerServer brokersiface.Br
 
 // NewServer creates Server instance
 func NewServer(cnf *config.Config) (*Server, error) {
+	fmt.Println("init broker")
 	broker, err := BrokerFactory(cnf)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("init backend")
 	// Backend is optional so we ignore the error
 	backend, _ := BackendFactory(cnf)
+
+	fmt.Println("init server")
 
 	srv := NewServerWithBrokerBackend(cnf, broker, backend)
 
