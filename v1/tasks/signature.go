@@ -43,7 +43,7 @@ func (h Headers) ForeachKey(handler func(key, val string) error) error {
 
 // Signature represents a single task invocation
 type Signature struct {
-	UUID           string
+	UUID           string `json:"ompitempty"`
 	Name           string
 	RoutingKey     string
 	ETA            *time.Time
@@ -68,6 +68,12 @@ type Signature struct {
 	// IgnoreWhenTaskNotRegistered auto removes the request when there is no handeler available
 	// When this is true a task with no handler will be ignored and not placed back in the queue
 	IgnoreWhenTaskNotRegistered bool
+}
+
+func (s *Signature) clone() *Signature {
+	ss := *s
+	ss.UUID = ""
+	return &ss
 }
 
 // NewSignature creates a new task signature
