@@ -1,6 +1,8 @@
 package dashboard
 
 import (
+	"fmt"
+
 	"github.com/RichardKnop/machinery/v1/backends/result"
 	"github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/log"
@@ -27,6 +29,7 @@ type Dashboard struct {
 type TaskWithSignature struct {
 	TaskName  string `bson:"task_name"`
 	Signature string `bson:"signature"`
+	CreatedAt string `bson:"created_at"`
 	Error     string `bson:"error"`
 }
 
@@ -58,7 +61,7 @@ func (m *Dashboard) FindAllTasksByState(state string) (taskStates []*TaskWithSig
 		TableName:              aws.String(m.cnf.DynamoDB.TaskStatesTable),
 		IndexName:              aws.String(tasks.TaskStateIndex), // use secondary global index
 		Limit:                  aws.Int64(10),
-		ProjectionExpression:   aws.String("TaskName, #err, Signature"),
+		ProjectionExpression:   aws.String("TaskName, #err, Signature, CreatedAt"),
 		KeyConditionExpression: aws.String("#st = :st"),
 		ExpressionAttributeNames: map[string]*string{
 			"#st":  aws.String("State"),
@@ -98,9 +101,13 @@ func (m *Dashboard) FindAllTasksByState(state string) (taskStates []*TaskWithSig
 
 // ReEnqueueTask :FIXME: failed to enqueue because the args value not matching the type
 func (m *Dashboard) ReEnqueueTask(sig *tasks.Signature) error {
-	sig.UUID = ""
 	sig.ETA = nil
 
 	_, err := m.server.SendTask(sig)
+	if err != nil {
+		err = fmt.Errorf("failed to send task: %w", err)
+		log.ERROR.Print(err)
+		return err
+	}
 	return err
 }

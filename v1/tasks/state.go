@@ -86,7 +86,7 @@ func NewFailureTaskState(signature *Signature, err string) *TaskState {
 	uuid := signature.UUID
 	return &TaskState{
 		TaskUUID:  uuid,
-		Signature: signature.clone(),
+		Signature: signature,
 		State:     StateFailure,
 		Error:     err,
 	}
@@ -96,7 +96,7 @@ func NewFailureTaskState(signature *Signature, err string) *TaskState {
 func NewRetryTaskState(signature *Signature) *TaskState {
 	return &TaskState{
 		TaskUUID:  signature.UUID,
-		Signature: signature.clone(),
+		Signature: signature,
 		State:     StateRetry,
 	}
 }

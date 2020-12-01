@@ -70,12 +70,6 @@ type Signature struct {
 	IgnoreWhenTaskNotRegistered bool `json:"IgnoreWhenTaskNotRegistered,omitempty"`
 }
 
-func (s *Signature) clone() *Signature {
-	ss := *s
-	ss.UUID = ""
-	return &ss
-}
-
 // NewSignature creates a new task signature
 func NewSignature(name string, args []Arg) (*Signature, error) {
 	signatureID := uuid.New().String()
