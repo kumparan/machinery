@@ -27,6 +27,8 @@ type Dashboard struct {
 
 // TaskWithSignature :nodoc:
 type TaskWithSignature struct {
+	TaskUUID  string `bson:"task_uuid"`
+	State     string `bson:"state"`
 	TaskName  string `bson:"task_name"`
 	Signature string `bson:"signature"`
 	CreatedAt string `bson:"created_at"`
@@ -61,7 +63,7 @@ func (m *Dashboard) FindAllTasksByState(state string) (taskStates []*TaskWithSig
 		TableName:              aws.String(m.cnf.DynamoDB.TaskStatesTable),
 		IndexName:              aws.String(tasks.TaskStateIndex), // use secondary global index
 		Limit:                  aws.Int64(10),
-		ProjectionExpression:   aws.String("TaskName, #err, Signature, CreatedAt"),
+		ProjectionExpression:   aws.String("TaskUUID, #st, TaskName, #err, Signature, CreatedAt"),
 		KeyConditionExpression: aws.String("#st = :st"),
 		ExpressionAttributeNames: map[string]*string{
 			"#st":  aws.String("State"),
