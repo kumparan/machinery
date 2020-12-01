@@ -101,15 +101,6 @@ func (m *Dashboard) ReEnqueueTask(sig *tasks.Signature) error {
 	sig.UUID = ""
 	sig.ETA = nil
 
-	for idx, arg := range sig.Args {
-		// args.Value
-		val, err := tasks.ReflectValue(arg.Type, arg.Value)
-		if err != nil {
-			log.FATAL.Println(err)
-		}
-
-		sig.Args[idx].Value = val
-	}
 	_, err := m.server.SendTask(sig)
 	return err
 }
