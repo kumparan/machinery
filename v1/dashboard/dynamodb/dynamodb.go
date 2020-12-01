@@ -87,8 +87,7 @@ func (m *Dashboard) FindAllTasksByState(state string) (taskStates []*TaskWithSig
 		}
 	}
 
-	var res []TaskWithSignature
-	err = dynamodbattribute.UnmarshalListOfMaps(items, &res)
+	err = dynamodbattribute.UnmarshalListOfMaps(items, &taskStates)
 	if err != nil {
 		log.ERROR.Print(err)
 		return nil, err
