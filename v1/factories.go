@@ -25,9 +25,6 @@ import (
 	mongobackend "github.com/RichardKnop/machinery/v1/backends/mongo"
 	nullbackend "github.com/RichardKnop/machinery/v1/backends/null"
 	redisbackend "github.com/RichardKnop/machinery/v1/backends/redis"
-
-	dynamodbdashboard "github.com/RichardKnop/machinery/v1/dashboard/dynamodb"
-	dashboardiface "github.com/RichardKnop/machinery/v1/dashboard/iface"
 )
 
 // BrokerFactory creates a new object of iface.Broker
@@ -173,8 +170,6 @@ func BackendFactory(cnf *config.Config) (backendiface.Backend, error) {
 	}
 
 	if strings.HasPrefix(cnf.ResultBackend, "https://dynamodb") || strings.HasPrefix(cnf.ResultBackend, "http://") {
-		fmt.Println("cnf.ResultBackend >>> ", cnf.ResultBackend)
-
 		return dynamobackend.New(cnf), nil
 	}
 
@@ -293,13 +288,4 @@ func ParseGCPPubSubURL(url string) (string, string, error) {
 	}
 
 	return "", "", fmt.Errorf("gcppubsub scheme should be in format gcppubsub://YOUR_GCP_PROJECT_ID/YOUR_PUBSUB_SUBSCRIPTION_NAME, instead got %s", url)
-}
-
-// DashboardFactory :nodoc:
-func DashboardFactory(cnf *config.Config, server *Server) (dashboardiface.Dashboard, error) {
-	if strings.HasPrefix(cnf.ResultBackend, "https://dynamodb") || strings.HasPrefix(cnf.ResultBackend, "http://") {
-		return dynamodbdashboard.New(cnf, server), nil
-	}
-
-	return nil, fmt.Errorf("Factory failed with dashboard: %v", cnf.ResultBackend)
 }
