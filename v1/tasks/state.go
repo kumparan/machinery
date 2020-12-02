@@ -1,8 +1,13 @@
 package tasks
 
-import "time"
+import (
+	"time"
+)
 
 const (
+	// TaskStateIndex index of State for Dynamodb
+	TaskStateIndex = "StateIndex"
+
 	// StatePending - initial state of a task
 	StatePending = "PENDING"
 	// StateReceived - when task is received by a worker
@@ -19,8 +24,9 @@ const (
 
 // TaskState represents a state of a task
 type TaskState struct {
-	TaskUUID  string        `bson:"_id"`
+	TaskUUID  string        `bson:"_id,omitempty"`
 	TaskName  string        `bson:"task_name"`
+	Signature *Signature    `bson:"signature"`
 	State     string        `bson:"state"`
 	Results   []*TaskResult `bson:"results"`
 	Error     string        `bson:"error"`
@@ -78,17 +84,19 @@ func NewSuccessTaskState(signature *Signature, results []*TaskResult) *TaskState
 // NewFailureTaskState ...
 func NewFailureTaskState(signature *Signature, err string) *TaskState {
 	return &TaskState{
-		TaskUUID: signature.UUID,
-		State:    StateFailure,
-		Error:    err,
+		TaskUUID:  signature.UUID,
+		Signature: signature,
+		State:     StateFailure,
+		Error:     err,
 	}
 }
 
 // NewRetryTaskState ...
 func NewRetryTaskState(signature *Signature) *TaskState {
 	return &TaskState{
-		TaskUUID: signature.UUID,
-		State:    StateRetry,
+		TaskUUID:  signature.UUID,
+		Signature: signature,
+		State:     StateRetry,
 	}
 }
 
