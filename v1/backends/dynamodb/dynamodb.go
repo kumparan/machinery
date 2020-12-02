@@ -502,20 +502,6 @@ func (b *Backend) initTaskState(taskState *tasks.TaskState) error {
 	return nil
 }
 
-func parseSignature(sig *tasks.Signature) map[string]*dynamodb.AttributeValue {
-	res, err := dynamodbattribute.MarshalMap(sig)
-	if err != nil {
-		return nil
-	}
-
-	return res
-	// return map[string]*dynamodb.AttributeValue{
-	// 	"UUID": &dynamodb.AttributeValue{S: aws.String(sig.UUID)},
-	// 	"Name": &dynamodb.AttributeValue{S: aws.String(sig.Name)},
-	// 	"Args": &dynamodb.AttributeValue{S: aws.String(sig.Args)}
-	// }
-}
-
 func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err error) {
 	sig, err := json.Marshal(taskState.Signature)
 	if err != nil {
@@ -558,9 +544,8 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err
 	}
 
 	_, err = b.client.UpdateItem(input)
-
 	if err != nil {
-		log.DEBUG.Print("FAILED >>> %#v", input)
+		log.ERROR.Print(err)
 		return err
 	}
 	return nil
@@ -662,4 +647,13 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func parseSignature(sig *tasks.Signature) map[string]*dynamodb.AttributeValue {
+	res, err := dynamodbattribute.MarshalMap(sig)
+	if err != nil {
+		return nil
+	}
+
+	return res
 }

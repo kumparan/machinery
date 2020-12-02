@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	// TaskStateIndex state index
+	// TaskStateIndex index of State for Dynamodb
 	TaskStateIndex = "StateIndex"
 
 	// StatePending - initial state of a task
@@ -83,9 +83,8 @@ func NewSuccessTaskState(signature *Signature, results []*TaskResult) *TaskState
 
 // NewFailureTaskState ...
 func NewFailureTaskState(signature *Signature, err string) *TaskState {
-	uuid := signature.UUID
 	return &TaskState{
-		TaskUUID:  uuid,
+		TaskUUID:  signature.UUID,
 		Signature: signature,
 		State:     StateFailure,
 		Error:     err,
