@@ -417,12 +417,21 @@ func (b *Backend) chordTriggered(groupUUID string) error {
 }
 
 func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
+	sig, err := json.Marshal(taskState.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to marshal task signature: %w", err)
+	}
+
 	expAttributeNames := map[string]*string{
-		"#S": aws.String("State"),
+		"#S":  aws.String("State"),
+		"#Si": aws.String("Signature"),
 	}
 	expAttributeValues := map[string]*dynamodb.AttributeValue{
 		":s": {
 			S: aws.String(taskState.State),
+		},
+		":si": {
+			S: aws.String(string(sig)),
 		},
 	}
 
@@ -431,7 +440,7 @@ func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
 			S: aws.String(taskState.TaskUUID),
 		},
 	}
-	exp := "SET #S = :s"
+	exp := "SET #S = :s, #Si = :si"
 	if !taskState.CreatedAt.IsZero() {
 		expAttributeNames["#C"] = aws.String("CreatedAt")
 		expAttributeValues[":c"] = &dynamodb.AttributeValue{
@@ -477,7 +486,7 @@ func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
 		UpdateExpression:          aws.String(exp),
 	}
 
-	_, err := b.client.UpdateItem(input)
+	_, err = b.client.UpdateItem(input)
 
 	if err != nil {
 		return err

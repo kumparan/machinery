@@ -75,9 +75,10 @@ func NewStartedTaskState(signature *Signature) *TaskState {
 // NewSuccessTaskState ...
 func NewSuccessTaskState(signature *Signature, results []*TaskResult) *TaskState {
 	return &TaskState{
-		TaskUUID: signature.UUID,
-		State:    StateSuccess,
-		Results:  results,
+		TaskUUID:  signature.UUID,
+		State:     StateSuccess,
+		Signature: signature,
+		Results:   results,
 	}
 }
 
