@@ -417,21 +417,21 @@ func (b *Backend) chordTriggered(groupUUID string) error {
 }
 
 func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
-	sig, err := json.Marshal(taskState.Signature)
+	signature, err := json.Marshal(taskState.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to marshal task signature: %w", err)
 	}
 
 	expAttributeNames := map[string]*string{
-		"#S":  aws.String("State"),
-		"#Si": aws.String("Signature"),
+		"#S":   aws.String("State"),
+		"#Sig": aws.String("Signature"),
 	}
 	expAttributeValues := map[string]*dynamodb.AttributeValue{
 		":s": {
 			S: aws.String(taskState.State),
 		},
-		":si": {
-			S: aws.String(string(sig)),
+		":sig": {
+			S: aws.String(string(signature)),
 		},
 	}
 
@@ -440,7 +440,7 @@ func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
 			S: aws.String(taskState.TaskUUID),
 		},
 	}
-	exp := "SET #S = :s, #Si = :si"
+	exp := "SET #S = :s, #Sig = :sig"
 	if !taskState.CreatedAt.IsZero() {
 		expAttributeNames["#C"] = aws.String("CreatedAt")
 		expAttributeValues[":c"] = &dynamodb.AttributeValue{
@@ -512,16 +512,16 @@ func (b *Backend) initTaskState(taskState *tasks.TaskState) error {
 }
 
 func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err error) {
-	sig, err := json.Marshal(taskState.Signature)
+	signature, err := json.Marshal(taskState.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to marshal task signature: %w", err)
 	}
 
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeNames: map[string]*string{
-			"#S":  aws.String("State"),
-			"#E":  aws.String("Error"),
-			"#Si": aws.String("Signature"),
+			"#S":   aws.String("State"),
+			"#E":   aws.String("Error"),
+			"#Sig": aws.String("Signature"),
 		},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":s": {
@@ -530,8 +530,8 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err
 			":e": {
 				S: aws.String(taskState.Error),
 			},
-			":si": {
-				S: aws.String(string(sig)),
+			":sig": {
+				S: aws.String(string(signature)),
 			},
 		},
 		Key: map[string]*dynamodb.AttributeValue{
@@ -541,7 +541,7 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err
 		},
 		ReturnValues:     aws.String("UPDATED_NEW"),
 		TableName:        aws.String(b.cnf.DynamoDB.TaskStatesTable),
-		UpdateExpression: aws.String("SET #S = :s, #E = :e, #Si = :si"),
+		UpdateExpression: aws.String("SET #S = :s, #E = :e, #Sig = :sig"),
 	}
 
 	if taskState.TTL > 0 {
@@ -658,8 +658,8 @@ func min(a, b int) int {
 	return b
 }
 
-func parseSignature(sig *tasks.Signature) map[string]*dynamodb.AttributeValue {
-	res, err := dynamodbattribute.MarshalMap(sig)
+func parseSignature(signature *tasks.Signature) map[string]*dynamodb.AttributeValue {
+	res, err := dynamodbattribute.MarshalMap(signature)
 	if err != nil {
 		return nil
 	}
