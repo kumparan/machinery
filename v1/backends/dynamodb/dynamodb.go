@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -424,6 +425,7 @@ func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
 			S: aws.String(taskState.State),
 		},
 	}
+
 	keyAttributeValues := map[string]*dynamodb.AttributeValue{
 		"TaskUUID": {
 			S: aws.String(taskState.TaskUUID),
@@ -500,11 +502,17 @@ func (b *Backend) initTaskState(taskState *tasks.TaskState) error {
 	return nil
 }
 
-func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) error {
+func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err error) {
+	sig, err := json.Marshal(taskState.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to marshal task signature: %w", err)
+	}
+
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeNames: map[string]*string{
-			"#S": aws.String("State"),
-			"#E": aws.String("Error"),
+			"#S":  aws.String("State"),
+			"#E":  aws.String("Error"),
+			"#Si": aws.String("Signature"),
 		},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":s": {
@@ -512,6 +520,9 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 			},
 			":e": {
 				S: aws.String(taskState.Error),
+			},
+			":si": {
+				S: aws.String(string(sig)),
 			},
 		},
 		Key: map[string]*dynamodb.AttributeValue{
@@ -521,7 +532,7 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 		},
 		ReturnValues:     aws.String("UPDATED_NEW"),
 		TableName:        aws.String(b.cnf.DynamoDB.TaskStatesTable),
-		UpdateExpression: aws.String("SET #S = :s, #E = :e"),
+		UpdateExpression: aws.String("SET #S = :s, #E = :e, #Si = :si"),
 	}
 
 	if taskState.TTL > 0 {
@@ -532,9 +543,9 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 		input.UpdateExpression = aws.String(aws.StringValue(input.UpdateExpression) + ", #T = :t")
 	}
 
-	_, err := b.client.UpdateItem(input)
-
+	_, err = b.client.UpdateItem(input)
 	if err != nil {
+		log.ERROR.Print(err)
 		return err
 	}
 	return nil
@@ -636,4 +647,13 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func parseSignature(sig *tasks.Signature) map[string]*dynamodb.AttributeValue {
+	res, err := dynamodbattribute.MarshalMap(sig)
+	if err != nil {
+		return nil
+	}
+
+	return res
 }
