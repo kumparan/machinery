@@ -1,6 +1,7 @@
 package dynamodb
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -416,20 +417,30 @@ func (b *Backend) chordTriggered(groupUUID string) error {
 }
 
 func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
+	signature, err := json.Marshal(taskState.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to marshal task signature: %w", err)
+	}
+
 	expAttributeNames := map[string]*string{
-		"#S": aws.String("State"),
+		"#S":   aws.String("State"),
+		"#Sig": aws.String("Signature"),
 	}
 	expAttributeValues := map[string]*dynamodb.AttributeValue{
 		":s": {
 			S: aws.String(taskState.State),
 		},
+		":sig": {
+			S: aws.String(string(signature)),
+		},
 	}
+
 	keyAttributeValues := map[string]*dynamodb.AttributeValue{
 		"TaskUUID": {
 			S: aws.String(taskState.TaskUUID),
 		},
 	}
-	exp := "SET #S = :s"
+	exp := "SET #S = :s, #Sig = :sig"
 	if !taskState.CreatedAt.IsZero() {
 		expAttributeNames["#C"] = aws.String("CreatedAt")
 		expAttributeValues[":c"] = &dynamodb.AttributeValue{
@@ -475,7 +486,7 @@ func (b *Backend) setTaskState(taskState *tasks.TaskState) error {
 		UpdateExpression:          aws.String(exp),
 	}
 
-	_, err := b.client.UpdateItem(input)
+	_, err = b.client.UpdateItem(input)
 
 	if err != nil {
 		return err
@@ -500,11 +511,17 @@ func (b *Backend) initTaskState(taskState *tasks.TaskState) error {
 	return nil
 }
 
-func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) error {
+func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) (err error) {
+	signature, err := json.Marshal(taskState.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to marshal task signature: %w", err)
+	}
+
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeNames: map[string]*string{
-			"#S": aws.String("State"),
-			"#E": aws.String("Error"),
+			"#S":   aws.String("State"),
+			"#E":   aws.String("Error"),
+			"#Sig": aws.String("Signature"),
 		},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":s": {
@@ -512,6 +529,9 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 			},
 			":e": {
 				S: aws.String(taskState.Error),
+			},
+			":sig": {
+				S: aws.String(string(signature)),
 			},
 		},
 		Key: map[string]*dynamodb.AttributeValue{
@@ -521,7 +541,7 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 		},
 		ReturnValues:     aws.String("UPDATED_NEW"),
 		TableName:        aws.String(b.cnf.DynamoDB.TaskStatesTable),
-		UpdateExpression: aws.String("SET #S = :s, #E = :e"),
+		UpdateExpression: aws.String("SET #S = :s, #E = :e, #Sig = :sig"),
 	}
 
 	if taskState.TTL > 0 {
@@ -532,9 +552,9 @@ func (b *Backend) updateToFailureStateWithError(taskState *tasks.TaskState) erro
 		input.UpdateExpression = aws.String(aws.StringValue(input.UpdateExpression) + ", #T = :t")
 	}
 
-	_, err := b.client.UpdateItem(input)
-
+	_, err = b.client.UpdateItem(input)
 	if err != nil {
+		log.ERROR.Print(err)
 		return err
 	}
 	return nil
@@ -636,4 +656,13 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func parseSignature(signature *tasks.Signature) map[string]*dynamodb.AttributeValue {
+	res, err := dynamodbattribute.MarshalMap(signature)
+	if err != nil {
+		return nil
+	}
+
+	return res
 }
